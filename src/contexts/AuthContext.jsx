@@ -60,8 +60,80 @@ export const AuthProvider = ({ children }) => {
     return token ? { 'Authorization': `Bearer ${token}` } : {};
   };
 
+  const login = async (email, password) => {
+    setError(null);
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to login');
+      }
+
+      // Store token and user data
+      localStorage.setItem('token', data.token);
+      setUser(data.user);
+      return true;
+    } catch (err) {
+      setError(err.message);
+      return false;
+    }
+  };
+
+  const register = async (userData) => {
+    setError(null);
+    try {
+      // Register the user
+      const registerResponse = await fetch('/api/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(userData)
+      });
+
+      const registerData = await registerResponse.json();
+
+      if (!registerResponse.ok) {
+        throw new Error(registerData.message || 'Registration failed');
+      }
+
+      // Call allocate API after successful registration
+      const allocateResponse = await fetch('/api/allocate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${registerData.token}`
+        },
+        body: JSON.stringify({ userId: registerData.user.id })
+      });
+
+      if (!allocateResponse.ok) {
+        throw new Error('Resource allocation failed');
+      }
+
+      // Automatically log in the user after successful registration
+      localStorage.setItem('token', registerData.token);
+      setUser(registerData.user);
+      return true;
+    } catch (err) {
+      setError(err.message);
+      return false;
+    }
+  };
+
+
   const value = {
     user,
+    login,
+    register,
     loading,
     error,
     logout,
